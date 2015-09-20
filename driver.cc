@@ -1,72 +1,78 @@
+// C++ Simple Image Maker
+// Author: Robert Lee
+// Created: Fall 2015
+
 #include <cstdlib>
+
+#include <iostream>
 #include <fstream>
 #include <string>
 
 #include "CImg.h"
-#include "types.hh"
-#include "image.hh"
+
+#include "image.h"
+
+using namespace std;
 
 int main(int argc,char**argv)
 {
-	fprintf(stdout, "Locating timestep data from '../output.txt'... ");
-	std::string timestep_file("../output.txt");
-	std::ifstream infile(timestep_file.c_str());
-	if(infile.peek() == std::ifstream::traits_type::eof())
+  if (argc < 2) 
+  {
+    cout << "\nUsage: ./run <input_file_name> <line_flag>\n"
+      << "\tinput_file_name: path of the input file.\n" 
+      << "\tline_flag: optional. If set to 1, then lines will be drawn in\n"
+      << "\t\tbetween the points. If set to 0, only points will be drawn.\n"
+      << endl;
+    return EXIT_SUCCESS;
+  }
+
+	string file_name(argv[1]);
+  bool drawlines = (argc > 2) ? stoi(argv[2]) : 0;
+
+	ifstream file_stream(file_name.c_str());
+	if(file_stream.peek() == std::ifstream::traits_type::eof())
 	{
-		fprintf(stdout, "\nCould not locate the file. Exiting.\n");
+		cout << "\nCould not locate the file. Exiting.\n\n";
 		return EXIT_SUCCESS;
 	}
-	fprintf(stdout, "Done.\n");
 
-	dtype view_dimension = 5;
-	// int trail_length = 2;
+	int points = 0;
+	file_stream >> points;
+	cout << "Number of points: " << points << endl;
 
-	int n = 0;
-	infile >> n;
-	fprintf(stdout, "Number of bodies: %d\n",n);
+	double* x = new double[points];
+	double* y = new double[points];
 
-	dtype* x = new dtype[n];
-	dtype* y = new dtype[n];
-	// dtype* x = new dtype[n*(trail_length+1)];
-	// dtype* y = new dtype[n*(trail_length+1)];
-	// dtype* xold = new dtype[n];
-	// dtype* yold = new dtype[n];
+  bool success = true;
+  for(int i = 0; i < points; ++i)
+  {
+    int point_id;
+    file_stream >> point_id >> x[i] >> y[i];
+    if ( point_id != i+1 )
+    {
+      cout << "Error! The point id did not match the iteration number!" << 
+        endl;
+      cout << "Exiting at iteration number " << i << "\n";
+      success = false;
+      break;
+    }
+  }
+  cout << "Done reading the input file!" << endl;
 
-	int counter = 0;
-	int timestep = 0;
-	while (infile >> x[counter] >> y[counter])
-	{
-    	if(counter == 0) fprintf(stdout, "Timestep %d\n",timestep);
-    	// fprintf(stdout, "%f %f\n", x[counter],y[counter]);
-    	++counter;
-    	if(counter == n)
-    	{
-    		// if(timestep==0)
-    		{
-    			write_static_image(x,y,n,timestep,view_dimension);
-    		}
-    		// else
-    		// {
-    		// 	write_dynamic_image(x,y,xold,yold,n,timestep,view_dimension);
-    		// }
-    		counter = 0;
-    		++timestep;
-    		// dtype* xtmp = x;
-    		// dtype* ytmp = y;
-    		// x = xold;
-    		// y = yold;
-    		// xold = xtmp;
-    		// yold = ytmp;
-    	}
-	}
-	fprintf(stdout, "Done reading file.\n");
-
-
+  if(success)
+  {
+    if (drawlines)
+    {
+      write_lines(x,y,points);
+    }
+    else
+    {
+      write_points(x,y,points);
+    }
+  }
 
 	delete[] x;
 	delete[] y;
-	// delete[] xold;
-	// delete[] yold;
 
 	return EXIT_SUCCESS;
 }

@@ -1,66 +1,117 @@
-#include "image.hh"
+#include "image.h"
 
-void write_static_image(const dtype*x, const dtype*y, const int n, 
-	const int timestep, const dtype view_dimension)
+using namespace cimg_library;
+using namespace std;
+
+// Returns the minimum value of an array.
+double minimum(const double* x, const int points)
 {
-	CImg<float> image(IMAGE_SIZE,IMAGE_SIZE,1,3,0);
-	const float color[] = {255,255,0};
-	for(int i=0;i<n;++i)
-	{
-		dtype max_bounds = 0.5 + view_dimension;
-		dtype min_bounds = 0.5 - view_dimension;
-		bool xbounds = x[i] < max_bounds and x[i] > min_bounds;
-		bool ybounds = y[i] < max_bounds and y[i] > min_bounds;
-		if(xbounds and ybounds)
-		{
-			dtype range = max_bounds - min_bounds;
-			int px = (x[i] - min_bounds) / range * IMAGE_SIZE;
-			// int py = IMAGE_SIZE - (y[i] - min_bounds) / range * IMAGE_SIZE;
-			int py = (y[i] - min_bounds) / range * IMAGE_SIZE;
-			// image.draw_circle(px,py,BODY_RADIUS,color);
-			image.draw_point(px,py,color);
-		}
-	}
-
-	char buffer[100];
-	sprintf(buffer, "%d", timestep);
-	std::string prefix("output/timestep");
-	std::string number(buffer);
-	std::string suffix(".png");
-	std::string imagename = prefix+number+suffix;
-	image.save(imagename.c_str());
+  double minimum = x[0];
+  for (int i=0;i<points;++i) minimum = ( x[i] < minimum ) ? x[i] : minimum;
+  return minimum;
 }
 
-void write_dynamic_image(const dtype*x, const dtype*y, 
-	const dtype*xold, const dtype*yold,
-	const int n, const int timestep, const dtype view_dimension)
+// Returns the maximum value in an array.
+double maximum(const double* x, const int points)
 {
-	CImg<float> image(IMAGE_SIZE,IMAGE_SIZE,1,3,0);
-	const float color[] = {255,255,0};
-	for(int i=0;i<n;++i)
-	{
-		dtype max_bounds = 0.5 + view_dimension;
-		dtype min_bounds = 0.5 - view_dimension;
-		bool xbounds = x[i] < max_bounds and x[i] > min_bounds;
-		bool ybounds = y[i] < max_bounds and y[i] > min_bounds;
-		if(xbounds and ybounds)
-		{
-			dtype range = max_bounds - min_bounds;
-			int px = (x[i] - min_bounds) / range * IMAGE_SIZE;
-			int py = IMAGE_SIZE - (y[i] - min_bounds) / range * IMAGE_SIZE;
-			int pxold = (xold[i] - min_bounds) / range * IMAGE_SIZE;
-			int pyold = IMAGE_SIZE - (yold[i] - min_bounds) / range * IMAGE_SIZE;
-			// image.draw_circle(px,py,BODY_RADIUS,color);
-			image.draw_line(px,py,pxold,pyold,color);
-			image.draw_point(px,py,color);
-		}
-	}
+  double maximum = x[0];
+  for (int i=0;i<points;++i) maximum = ( x[i] > maximum ) ? x[i] : maximum;
+  return maximum;
+}
 
-	char buffer[100];
-	sprintf(buffer, "%05d", timestep);
-	std::string prefix("output/timestep");
-	std::string number(buffer);
-	std::string suffix(".png");
-	std::string imagename = prefix+number+suffix;
-	image.save(imagename.c_str());
+// Adds the shift value to an entire array.
+void shift(double* x, const int points, const double shift)
+{
+  for (int i=0;i<points;++i) x[i] += shift;
+}
+
+// Writes an image of the points in the data set.
+void write_points(double* x, double* y, const int points)
+{
+  const double color[] = {255,255,0};
+  double x_max = maximum(x,points);
+  double y_max = maximum(y,points);
+  double x_min = minimum(x,points);
+  double y_min = minimum(y,points);
+
+  shift(x,points,-x_min);
+  shift(y,points,-y_min);
+
+  double x_range = x_max - x_min;
+  double y_range = y_max - y_min;
+
+  double max_range = ( x_range > y_range ) ? x_range : y_range;
+  double pixel_range = IMAGE_SIZE - 2*PIXEL_PADDING;
+  double to_pixels = pixel_range / max_range;
+
+  int x_pixels = x_range*to_pixels + 2*PIXEL_PADDING;
+  int y_pixels = y_range*to_pixels + 2*PIXEL_PADDING;
+
+  CImg<double> image( x_pixels, y_pixels,
+    1, // Layers.
+    3, // Color channels.
+    0 // Initialization color value.
+  );
+
+  for ( int i = 0; i < points; ++i )
+  {
+    int px = PIXEL_PADDING + (x[i]*to_pixels);
+    int py = PIXEL_PADDING + pixel_range - (y[i]*to_pixels);
+    // image.draw_circle(px,py,BODY_RADIUS,color);
+    image.draw_point(px,py,color);
+  }
+
+  string image_name("output.png");
+  image.save(image_name.c_str());
+}
+
+// Writes an image of the lines connecting the points in the data set, in 
+// order.
+void write_lines(double* x, double* y, const int points)
+{
+  const double color[] = {255,255,0};
+  double x_max = maximum(x,points);
+  double y_max = maximum(y,points);
+  double x_min = minimum(x,points);
+  double y_min = minimum(y,points);
+
+  shift(x,points,-x_min);
+  shift(y,points,-y_min);
+
+  double x_range = x_max - x_min;
+  double y_range = y_max - y_min;
+
+  double max_range = ( x_range > y_range ) ? x_range : y_range;
+  double pixel_range = IMAGE_SIZE - 2*PIXEL_PADDING;
+  double to_pixels = pixel_range / max_range;
+
+  int x_pixels = x_range*to_pixels + 2*PIXEL_PADDING;
+  int y_pixels = y_range*to_pixels + 2*PIXEL_PADDING;
+
+  CImg<double> image( x_pixels, y_pixels,
+    1, // Layers.
+    3, // Color channels.
+    0 // Initialization color value.
+  );
+
+  int* px = new int[points];
+  int* py = new int[points];
+
+  for ( int i = 0; i < points; ++i )
+  {
+    px[i] = PIXEL_PADDING + (x[i]*to_pixels);
+    py[i] = PIXEL_PADDING + pixel_range - (y[i]*to_pixels);
+  }
+
+  for ( int i = 0; i < points-1; ++i )
+  {
+    image.draw_line(px[i],py[i],px[i+1],py[i+1],color);
+  }
+  image.draw_line(px[points-1],py[points-1],px[0],py[0],color);
+
+  delete[] px;
+  delete[] py;
+
+  string image_name("output.png");
+  image.save(image_name.c_str());
 }
