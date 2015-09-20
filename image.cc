@@ -56,8 +56,8 @@ void write_points(double* x, double* y, const int points)
   for ( int i = 0; i < points; ++i )
   {
     int px = PIXEL_PADDING + (x[i]*to_pixels);
-    int py = PIXEL_PADDING + pixel_range - (y[i]*to_pixels);
-    // image.draw_circle(px,py,BODY_RADIUS,color);
+    int py = PIXEL_PADDING + y_range*to_pixels - (y[i]*to_pixels);
+    // image.draw_circle(px,py,5,color);
     image.draw_point(px,py,color);
   }
 
@@ -100,7 +100,7 @@ void write_lines(double* x, double* y, const int points)
   for ( int i = 0; i < points; ++i )
   {
     px[i] = PIXEL_PADDING + (x[i]*to_pixels);
-    py[i] = PIXEL_PADDING + pixel_range - (y[i]*to_pixels);
+    py[i] = PIXEL_PADDING + y_range*to_pixels - (y[i]*to_pixels);
   }
 
   for ( int i = 0; i < points-1; ++i )
